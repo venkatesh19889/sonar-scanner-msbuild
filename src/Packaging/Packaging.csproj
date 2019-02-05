@@ -93,7 +93,7 @@
 
 
   <!-- Packaging Logic -->
-  <UsingTask TaskName="DownloadFile" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll">
+  <UsingTask TaskName="DownloadFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <Url ParameterType="System.String" Required="true" />
       <File ParameterType="System.String" Required="false" />
@@ -113,6 +113,62 @@
 
         var fileName = File ?? System.IO.Path.GetFileName(new Uri(Url).LocalPath);
         client.DownloadFile(Url, directory + fileName);
+    }
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <!-- There are MS-supplied Unzip and ZipDirectory tasks, but they are only available in MSBuild 15.8 or above.
+       See https://docs.microsoft.com/en-us/visualstudio/msbuild/unzip-task?view=vs-2017
+       and https://docs.microsoft.com/en-us/visualstudio/msbuild/zipdirectory-task?view=vs-2017 -->
+  <UsingTask TaskName="Unzip" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <SourcePath ParameterType="System.String" Required="true" />
+      <SourceFileName ParameterType="System.String" Required="true" />
+      <TargetPath ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[    
+    var fullSourcePath = System.IO.Path.Combine(SourcePath, SourceFileName);
+    System.IO.Compression.ZipFile.ExtractToDirectory(fullSourcePath, TargetPath);
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <UsingTask TaskName="ZipDirectory" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <SourceDirectoryPath ParameterType="System.String" Required="true" />
+      <TargetFilePath ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Class" Language="cs">
+        <![CDATA[    
+    public class ZipDirectory : Microsoft.Build.Utilities.Task
+    {
+        [Microsoft.Build.Framework.Required]
+        public string SourceDirectoryPath { get; set; }
+
+        [Microsoft.Build.Framework.Required]
+        public string TargetFilePath { get; set; }
+
+        private class MyEncoder : System.Text.UTF8Encoding
+        {
+            public MyEncoder() : base(true) { }
+            public override byte[] GetBytes(string s)
+            {
+              return base.GetBytes(s.Replace((char)92, (char)47));
+            }
+        }
+
+        public override bool Execute()
+        {
+            var encoder = new MyEncoder();
+            System.IO.Compression.ZipFile.CreateFromDirectory(SourceDirectoryPath, TargetFilePath, System.IO.Compression.CompressionLevel.Fastest, false, encoder);
+            return true;
+        }
     }
         ]]>
       </Code>
@@ -139,6 +195,7 @@
   </Target>
 
   <Target Name="CleanExistingPayload" AfterTargets="Clean">
+    <Message Importance="high" Text="Removing directory: $(WorkDestinationDir)" />
     <RemoveDir Directories="$(WorkDestinationDir)" />
     <Delete Files="$(DestinationArtifactPath)" />
   </Target>
@@ -149,7 +206,10 @@
   </Target>
 
   <Target Name="UnzipScannerCli">
-    <Exec Command="powershell.exe -executionpolicy bypass -command &quot;Add-Type -assembly system.io.compression.filesystem; [io.compression.zipfile]::ExtractToDirectory('$(BuildAgentPayloadDir)$(ScannerCliArtifact)', '$(WorkDestinationDir)')&quot;" />
+    <Message Importance="high" Text="Unzipping ScannerCli:" />
+    <Message Importance="high" Text="  Source: $(BuildAgentPayloadDir)$(ScannerCliArtifact)" />
+    <Message Importance="high" Text="  Target: $(WorkDestinationDir)" />
+    <Unzip SourcePath="$(BuildAgentPayloadDir)" SourceFileName="$(ScannerCliArtifact)" TargetPath="$(WorkDestinationDir)" />
   </Target>
 
   <Target Name="SignDlls" Condition="'$(SignAssembly)' == 'true'">
@@ -162,7 +222,10 @@
 
   <!-- Don't create the zip for netcoreapp2.1 -->
   <Target Name="ZipPayloadFiles" Condition=" '$(TargetFramework)' != '$(ScannerNetCoreGlobalToolVersion)' AND $(Configuration) == 'Release' ">
-    <Exec Command="powershell.exe -executionpolicy bypass -command &quot;Add-Type -assembly system.io.compression.filesystem; Add-Type -assembly system.text.encoding; Add-Type -TypeDefinition 'public class MyEncoder : System.Text.UTF8Encoding { public MyEncoder() : base(true) {} public override byte[] GetBytes(string s) { return base.GetBytes(s.Replace((char) 92, (char) 47)); } }'; $enc = New-Object MyEncoder; [io.compression.zipfile]::CreateFromDirectory('$(WorkDestinationDir)', '$(DestinationArtifactPath)', [io.compression.compressionlevel]::fastest, $false, $enc)&quot;" />
+    <Message Importance="high" Text="Zipping ScannerCli:" />
+    <Message Importance="high" Text="  Source: $(WorkDestinationDir)" />
+    <Message Importance="high" Text="  Target: $(DestinationArtifactPath)" />
+    <ZipDirectory SourceDirectoryPath="$(WorkDestinationDir)" TargetFilePath="$(DestinationArtifactPath)" />
   </Target>
 
   <Target Name="CreateNuGetPackage" Condition=" '$(TargetFramework)' == '$(ScannerNetCoreGlobalToolVersion)' AND $(Configuration) == 'Release' ">
