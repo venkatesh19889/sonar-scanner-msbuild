@@ -97,6 +97,7 @@ stages:
           logFileVerbosity: detailed
           #msbuildArgs: '/m /p:DeployExtension=false /p:ZipPackageCompressionLevel=normal /p:defineConstants="SignAssembly" /p:SignAssembly=true /p:AssemblyOriginatorKeyFile="$(snk.secureFilePath)" /p:PFX_PATH="$(pfx.secureFilePath)"'
       - task: VSTest@2
+        enabled: false
         inputs:
           testSelector: 'testAssemblies'
           testAssemblyVer2: |
@@ -154,6 +155,7 @@ stages:
         inputs:
           filePath: 'scripts\\build\\ci-build.ps1'
       - task: Maven@3
+        displayName: 'Stage to repox'
         env:
           PROJECT_VERSION: $(SONAR_PROJECT_VERSION)
           BUILD_ID: $(Build.BuildId)
@@ -162,7 +164,7 @@ stages:
         inputs:
           mavenPomFile: 'pom.xml'
           goals: 'deploy'
-          options: '-settings $(mavenSettings.secureFilePath) -Djarsigner.skip=false -Dsonarsource.keystore.path=$(jks.secureFilePath) -Dsonarsource.keystore.password=$(jksPassword) -Pdeploy-sonarsource -B -e -V'
+          options: '--settings $(mavenSettings.secureFilePath) -Djarsigner.skip=false -Dsonarsource.keystore.path=$(jks.secureFilePath) -Dsonarsource.keystore.password=$(jksPassword) -Pdeploy-sonarsource -B -e -V'
           publishJUnitResults: false
           javaHomeOption: 'JDKVersion'
           mavenVersionOption: 'Default'
