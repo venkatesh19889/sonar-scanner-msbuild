@@ -156,6 +156,18 @@ stages:
         inputs:
           filePath: 'scripts\\build\\ci-build.ps1'
       - task: Maven@3
+        displayName: Promote new version in pom
+        env:
+         version: $(SONAR_PROJECT_VERSION)
+        inputs:
+         mavenPomFile: 'pom.xml'
+         goals: 'org.codehaus.mojo:versions-maven-plugin:3.0:set'
+         options: '-DnewVersion=$(version) --settings $(mavenSettings.secureFilePath) -DgenerateBackupPoms=false -B -e'
+         javaHomeOption: 'JDKVersion'
+         mavenVersionOption: 'Default'
+         jdkVersionOption: '1.11'
+         mavenOptions: '-Xmx3072m'
+      - task: Maven@3
         displayName: 'Stage to repox'
         env:
           PROJECT_VERSION: $(SONAR_PROJECT_VERSION)
