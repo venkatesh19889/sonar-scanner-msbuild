@@ -161,16 +161,14 @@ stages:
           BUILD_ID: $(Build.BuildId)
           ARTIFACTORY_DEPLOY_USERNAME: $(ARTIFACTORY_DEPLOY_USERNAME)
           ARTIFACTORY_DEPLOY_PASSWORD: $(ARTIFACTORY_DEPLOY_PASSWORD)
+          ARTIFACTORY_URL: $(ARTIFACTORY_URL)
         inputs:
-          mavenPomFile: 'pom.xml'
           goals: 'deploy'
           options: '--settings $(mavenSettings.secureFilePath) -Djarsigner.skip=false -Dsonarsource.keystore.path=$(jks.secureFilePath) -Dsonarsource.keystore.password=$(jksPassword) -Pdeploy-sonarsource -B -e -V'
           publishJUnitResults: false
           javaHomeOption: 'JDKVersion'
-          mavenVersionOption: 'Default'
-          mavenAuthenticateFeed: false
-          effectivePomSkip: false
-          sonarQubeRunAnalysis: false
+          jdkVersionOption: '1.11'
+          mavenOptions: '-Xmx3072m'
       - task: PublishPipelineArtifact@1
         displayName: 'Publish packages as artifacts'
         inputs:
