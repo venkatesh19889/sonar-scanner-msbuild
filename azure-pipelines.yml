@@ -226,6 +226,21 @@ stages:
          name: mavenSettings
          inputs:
           secureFile: 'maven-settings.xml'
+       - task: DownloadPipelineArtifact@2
+         inputs:
+          buildType: 'current'
+          itemPattern: |
+            *.zip
+            version.txt
+          targetPath: '$(Pipeline.Workspace)\\scanner-packages'
+          artifactName: scanner-packages
+       - task: PowerShell@2
+         displayName: "Get version from artifact file"
+         inputs:
+          targetType: 'inline'
+          script: |
+             $projectVersion = Get-Content "$(Pipeline.Workspace)\\scanner-packages\\version.txt"
+             Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION]$projectVersion"
        - task: Maven@3
          displayName: 'Run Maven ITs for SQ $(SQ_VERSION)'
          env:
