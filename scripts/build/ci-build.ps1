@@ -115,9 +115,9 @@ function Generate-Artifacts() {
             -Replace 'dotnetScannerChocoPath', "$currentDir\\$artifactsFolder\\sonarscanner-msbuild-netcoreapp2.0.$version.nupkg" `
         | Set-Content $pomFile
 
-    Exec { & mvn org.codehaus.mojo:versions-maven-plugin:2.2:set "-DnewVersion=${version}" `
-        -DgenerateBackupPoms=false -B -e `
-    } -errorMessage "ERROR: Maven set version FAILED."
+    #Exec { & mvn org.codehaus.mojo:versions-maven-plugin:2.2:set "-DnewVersion=${version}" `
+     #   -DgenerateBackupPoms=false -B -e `
+    #} -errorMessage "ERROR: Maven set version FAILED."
 
     Write-Host "Deploying artifacts to repox"
     # Set the version used by Jenkins to associate artifacts to the right version
