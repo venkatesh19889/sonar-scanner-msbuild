@@ -135,6 +135,12 @@ stages:
             }
             Get-ChildItem $(Agent.TempDirectory) -Filter 'dummy.*' -Recurse -Attributes !Directory | Remove-Item
             Get-ChildItem $(Agent.TempDirectory) -Filter 'VSCodeCoverageReport.*' -Recurse -Attributes !Directory | Remove-Item
+      - task: PowerShell@2
+        displayName: 'Display env variables'
+        inputs:
+          targetType: 'inline'
+          script: |
+            gci env:
       - task: SonarCloudAnalyze@1
         enabled: false
         condition: and(succeeded(), or(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranchName'], 'master')))
@@ -158,11 +164,11 @@ stages:
       - task: Maven@3
         displayName: Promote new version in pom
         env:
-         version: $(SONAR_PROJECT_VERSION)
+          ARTIFACTORY_URL: $(ARTIFACTORY_URL)
         inputs:
          mavenPomFile: 'pom.xml'
          goals: 'org.codehaus.mojo:versions-maven-plugin:3.0:set'
-         options: '-DnewVersion=$(version) --settings $(mavenSettings.secureFilePath) -DgenerateBackupPoms=false -B -e'
+         options: '-DnewVersion=$(SONAR_PROJECT_VERSION) --settings $(mavenSettings.secureFilePath) -DgenerateBackupPoms=false -B -e'
          javaHomeOption: 'JDKVersion'
          mavenVersionOption: 'Default'
          jdkVersionOption: '1.11'
