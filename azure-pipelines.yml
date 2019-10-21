@@ -134,12 +134,6 @@ stages:
             }
             Get-ChildItem $(Agent.TempDirectory) -Filter 'dummy.*' -Recurse -Attributes !Directory | Remove-Item
             Get-ChildItem $(Agent.TempDirectory) -Filter 'VSCodeCoverageReport.*' -Recurse -Attributes !Directory | Remove-Item
-      - task: PowerShell@2
-        displayName: 'Display env variables'
-        inputs:
-          targetType: 'inline'
-          script: |
-            gci env:
       - task: SonarCloudAnalyze@1
         enabled: false
         condition: and(succeeded(), or(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranchName'], 'master')))
@@ -151,11 +145,6 @@ stages:
         name: mavenSettings
         inputs:
           secureFile: 'maven-settings.xml'
-      - task: DownloadSecureFile@1
-        displayName: 'Download JKS keystore'
-        name: jks
-        inputs:
-          secureFile: 'SonarSource-2019-2021.jks'
       - task: PowerShell@2
         displayName: 'Generate artifacts'
         inputs:
@@ -237,22 +226,6 @@ stages:
          name: mavenSettings
          inputs:
           secureFile: 'maven-settings.xml'
-       - task: DownloadPipelineArtifact@2
-         inputs:
-          buildType: 'current'
-          itemPattern: |
-            *.zip
-            version.txt
-          targetPath: '$(Pipeline.Workspace)\\scanner-packages'
-          artifactName: scanner-packages
-       - task: PowerShell@2
-         displayName: "Get version from artifact file"
-         inputs:
-          targetType: 'inline'
-          script: |
-             $projectVersion = Get-Content "$(Pipeline.Workspace)\\scanner-packages\\version.txt"
-             Rename-Item -Path "$(Pipeline.Workspace)\\scanner-packages\\sonarscanner-msbuild-$projectVersion.$env:Build_BuildId-net46.zip" -NewName "sonarscanner-msbuild-net46.zip"
-             Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION]$projectVersion"
        - task: Maven@3
          displayName: 'Run Maven ITs for SQ $(SQ_VERSION)'
          env:
