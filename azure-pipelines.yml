@@ -7,8 +7,9 @@ pool:
   vmImage: 'vs2017-win2016'
 
 variables:
-  group: sonarsource-build-variables
-  system.debug: true
+  - group: sonarsource-build-variables
+  - name: system.debug
+    value: true
 
 resources:
   repositories:
