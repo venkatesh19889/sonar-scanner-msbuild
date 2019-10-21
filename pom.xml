@@ -5,7 +5,6 @@
     <groupId>org.sonarsource.parent</groupId>
     <artifactId>parent</artifactId>
     <version>53.0.560</version>
-    <relativePath />
   </parent>
 
   <groupId>org.sonarsource.scanner.msbuild</groupId>
