@@ -166,7 +166,7 @@ stages:
           ARTIFACTORY_URL: $(ARTIFACTORY_URL)
         inputs:
          mavenPomFile: 'pom.xml'
-         goals: 'org.codehaus.mojo:versions-maven-plugin:3.0:set'
+         goals: 'org.codehaus.mojo:versions-maven-plugin:2.2:set'
          options: '-DnewVersion=$(SONAR_PROJECT_VERSION) --settings $(mavenSettings.secureFilePath) -DgenerateBackupPoms=false -B -e'
          javaHomeOption: 'JDKVersion'
          mavenVersionOption: 'Default'
