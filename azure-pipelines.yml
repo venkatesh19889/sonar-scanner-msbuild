@@ -149,12 +149,10 @@ stages:
           filePath: 'scripts\\build\\ci-build.ps1'
       - task: Maven@3
         displayName: Promote new version in pom
-        env:
-          ARTIFACTORY_URL: $(ARTIFACTORY_URL)
         inputs:
          mavenPomFile: 'pom.xml'
          goals: 'org.codehaus.mojo:versions-maven-plugin:2.2:set'
-         options: '-DnewVersion=$(SONAR_PROJECT_VERSION) --settings $(mavenSettings.secureFilePath) -DgenerateBackupPoms=false -B -e'
+         options: '-DnewVersion=$(SONAR_PROJECT_VERSION).$(Build.BuildId) --settings $(mavenSettings.secureFilePath) -DgenerateBackupPoms=false -B -e'
          javaHomeOption: 'JDKVersion'
          mavenVersionOption: 'Default'
          jdkVersionOption: '1.11'
