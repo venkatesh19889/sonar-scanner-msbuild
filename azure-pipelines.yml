@@ -263,7 +263,6 @@ stages:
            script: |
               Write-Host "Seeking for msbuild.exe...."
               Get-ChildItem -Path "C:\\Program Files (x86)\\MSBuild" -Recurse -Filter "msbuild.exe"
-              Get-ChildItem -Path "C:\\Program Files (x86)" -Recurse -Filter "msbuild.exe"
        - task: PowerShell@2
          displayName: "Get version from artifact file"
          inputs:
