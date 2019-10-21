@@ -51,9 +51,9 @@
   <build>
     <plugins>
       <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>3.0.0</version>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>1.12</version>
         <executions>
           <execution>
             <id>attach-artifacts</id>
