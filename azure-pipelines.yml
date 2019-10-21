@@ -35,12 +35,21 @@ stages:
        sonarCloudMsBuildProjectName: 'SonarScanner for MSBuild'
        buildPlatform: 'Any CPU'
        buildConfiguration: 'Release'
+       MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+       MAVEN_OPTS: '-Xmx3072m -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+       commonMavenArguments: -B -Pdeploy-sonarsource -Dmaven.test.skip=true
       steps:
       - checkout: self
       - task: NuGetToolInstaller@1
         displayName: 'Use NuGet 4.9.3'
         inputs:
           versionSpec: '4.9.3'
+
+      - task: CacheBeta@0
+        displayName: Cache Maven local repo
+        inputs:
+          key: maven | pom.xml
+          path: $(MAVEN_CACHE_FOLDER)
       - task: NuGetCommand@2
         displayName: 'NuGet restore'
         inputs:
@@ -152,11 +161,15 @@ stages:
         inputs:
          mavenPomFile: 'pom.xml'
          goals: 'org.codehaus.mojo:versions-maven-plugin:2.2:set'
-         options: '-DnewVersion=$(SONAR_PROJECT_VERSION).$(Build.BuildId) --settings $(mavenSettings.secureFilePath) -DgenerateBackupPoms=false -B -e'
+         options: >-
+          $(commonMavenArguments)
+          -DnewVersion=$(SONAR_PROJECT_VERSION).$(Build.BuildId)
+          --settings $(mavenSettings.secureFilePath)
+          -DgenerateBackupPoms=false -e
          javaHomeOption: 'JDKVersion'
          mavenVersionOption: 'Default'
          jdkVersionOption: '1.11'
-         mavenOptions: '-Xmx3072m'
+         mavenOptions: $(MAVEN_OPTS)
       - task: Maven@3
         displayName: 'Stage to repox'
         env:
@@ -166,17 +179,22 @@ stages:
           ARTIFACTORY_DEPLOY_PASSWORD: $(ARTIFACTORY_DEPLOY_PASSWORD)
         inputs:
           goals: 'deploy'
-          options: '--settings $(mavenSettings.secureFilePath) -Pdeploy-sonarsource -B -e -V'
+          options: >-
+            $(commonMavenArguments)
+            --settings $(mavenSettings.secureFilePath)
+            -Pdeploy-sonarsource -e -V
           publishJUnitResults: false
           javaHomeOption: 'JDKVersion'
           jdkVersionOption: '1.11'
-          mavenOptions: '-Xmx3072m'
+          mavenOptions: $(MAVEN_OPTS)
       - task: PublishPipelineArtifact@1
         displayName: 'Publish packages as artifacts'
         inputs:
           targetPath: 'DeploymentArtifacts/BuildAgentPayload/$(BuildConfiguration)'
           artifact: 'scanner-packages'
-
+      - bash: git checkout .
+        name: revertPomChanges
+        displayName: Revert changes made to pom.xml to not break cache feature
 - template: stage-with-burgr-notifications.yml@commonTemplates
   parameters:
     burgrName: 'qa'
@@ -192,31 +210,39 @@ stages:
           vs2015_dev: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "DEV"
-            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\msbuild.exe"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
           vs2015_latest67: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "LATEST_RELEASE[6.7]"
-            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\msbuild.exe"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
           vs2015_latest79: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "LATEST_RELEASE[7.9]"
-            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\msbuild.exe"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
           vs2017_dev: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "DEV"
-            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\msbuild.exe"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
           vs2017_latest67: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "LATEST_RELEASE[6.7]"
-            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\msbuild.exe"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
           vs2017_latest79: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "LATEST_RELEASE[7.9]"
-            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\msbuild.exe"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
         maxParallel: 2
+      variables:
+        MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+        MAVEN_OPTS: '-Xmx3072m -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
       steps:
        - checkout: self
          fetchDepth: 1
+       - task: CacheBeta@0
+         displayName: Cache Maven local repo
+         inputs:
+          key: maven | its/pom.xml
+          path: $(MAVEN_CACHE_FOLDER)
        - task: DownloadSecureFile@1
          displayName: 'Download maven settings'
          name: mavenSettings
@@ -231,6 +257,14 @@ stages:
           targetPath: '$(Pipeline.Workspace)\\scanner-packages'
           artifactName: scanner-packages
        - task: PowerShell@2
+         displayName: "Push .Net Core 2 package to chocolatey"
+         inputs:
+           targetType: 'inline'
+           script: |
+              Write-Host "Seeking for msbuild.exe...."
+              Get-ChildItem -Path "C:\\Program Files (x86)\\MSBuild" -Recurse -Filter "msbuild.exe"
+              Get-ChildItem -Path "C:\\Program Files (x86)" -Recurse -Filter "msbuild.exe"
+       - task: PowerShell@2
          displayName: "Get version from artifact file"
          inputs:
           targetType: 'inline'
@@ -238,22 +272,27 @@ stages:
              $projectVersion = Get-Content "$(Pipeline.Workspace)\\scanner-packages\\version.txt"
              Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION]$projectVersion"
        - task: Maven@3
-         displayName: 'Run Maven ITs for SQ $(SQ_VERSION)'
+         displayName: 'Run Maven ITs for SQ $(SQ_VERSION)_$(imageName)'
          env:
            ARTIFACTORY_QA_READER_USERNAME: $(ARTIFACTORY_QA_READER_USERNAME)
            ARTIFACTORY_QA_READER_PASSWORD: $(ARTIFACTORY_QA_READER_PASSWORD)
            # For Orchestrator
            ARTIFACTORY_API_KEY: $(ARTIFACTORY_API_KEY)
            GITHUB_TOKEN: $(GITHUB_TOKEN)
+           MAVEN_LOCAL_REPOSITORY: $(MAVEN_CACHE_FOLDER)
          inputs:
           goals: 'verify'
           options: --settings $(mavenSettings.secureFilePath) -B -e -Denable-repo=qa -Dsonar.runtimeVersion=$(SQ_VERSION) -DscannerForMSBuild.version=$(SONAR_PROJECT_VERSION).$(Build.BuildId) -Dmsbuild.path="$(MSBUILD_PATH)"
           publishJUnitResults: true
           mavenPomFile: 'its/pom.xml'
           testResultsFiles: '**/surefire-reports/TEST-*.xml'
+          testRunTitle: 'ITs $(SQ_VERSION)_$(imageName)'
           javaHomeOption: 'JDKVersion'
           jdkVersionOption: '1.11'
-          mavenOptions: '-Xmx3072m'
+          mavenOptions: $(MAVEN_OPTS)
+       - bash: git checkout .
+         name: revertPomChanges
+         displayName: Revert changes made to pom.xml to not break cache feature
 - template: promote-stage.yml@commonTemplates
   parameters:
     stageDependencies:
