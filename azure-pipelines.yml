@@ -1,0 +1,421 @@
+# SonarScanner for MSBuild
+# Build, QA, Deploy
+
+trigger: none
+
+pool:
+  vmImage: 'vs2017-win2016'
+
+variables:
+  - group: sonarsource-build-variables
+
+resources:
+  repositories:
+    - repository: commonTemplates
+      type: git
+      name: pipelines-yaml-templates
+      ref: refs/tags/v1.0
+
+stages:
+- template: stage-with-burgr-notifications.yml@commonTemplates
+  parameters:
+    burgrName: 'build'
+    burgrType: 'build'
+    stageName: 'build'
+    stageDisplayName: Build and stage to repox
+    jobs:
+    - job: build
+      displayName: 'Build and stage to repox'
+      variables:
+       SIGNTOOL_PATH: 'C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.17763.0\\x64\\signtool.exe'
+       solution: 'SonarScanner.MSBuild.sln'
+       sonarCloudConnection: 'SonarCloud'
+       sonarCloudOrganization: 'sonarsource'
+       sonarCloudMsBuildProjectKey: 'sonarscanner-msbuild'
+       sonarCloudMsBuildProjectName: 'SonarScanner for MSBuild'
+       buildPlatform: 'Any CPU'
+       buildConfiguration: 'Release'
+      steps:
+      - checkout: self
+      - task: NuGetToolInstaller@1
+        displayName: 'Use NuGet 4.9.3'
+        inputs:
+          versionSpec: '4.9.3'
+      - task: NuGetCommand@2
+        displayName: 'NuGet restore'
+        inputs:
+          command: 'restore'
+          restoreSolution: '$(solution)'
+          feedsToUse: 'select'
+      - task: DownloadSecureFile@1
+        name: snk
+        inputs:
+          secureFile: 'SonarSourceSecret.snk'
+        displayName: 'Download snk'
+      - task: DownloadSecureFile@1
+        displayName: 'Download pfx'
+        name: pfx
+        inputs:
+          secureFile: 'sonarsource-2019-2021.pfx'
+      - task: PowerShell@2
+        displayName: 'Promote project version'
+        inputs:
+          targetType: 'inline'
+          script: |
+            # Calculate the file path
+            $versionFilePath = "$env:BUILD_SOURCESDIRECTORY\scripts\version\Version.props"
+            Write-Host "Reading the Sonar project version from '${versionFilePath}' ..."
+            
+            # Read the version from the file
+            [xml]$versionProps = Get-Content "$versionFilePath"
+            $sonarProjectVersion = $versionProps.Project.PropertyGroup.MainVersion
+            Write-Host "Sonar project version is '${sonarProjectVersion}'"
+            # Set the variable to it can be used by other tasks
+            [System.Environment]::SetEnvironmentVariable("SONAR_PROJECT_VERSION",$sonarProjectVersion, "User")
+            Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION;isOutput=true]$sonarProjectVersion"
+      - task: SonarCloudPrepare@1
+        enabled: false
+        condition: and(succeeded(), or(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranchName'], 'master')))
+        inputs: 
+          SonarCloud: '$(sonarCloudConnection)'
+          organization: '$(sonarCloudOrganization)'
+          projectKey: '$(sonarCloudMsBuildProjectKey)'
+          projectName: '$(sonarCloudMsBuildProjectName)'
+          projectVersion: '$(SONAR_PROJECT_VERSION)'
+          scannerMode: MSBuild
+      - task: VSBuild@1
+        env: 
+          PFX_PASSWORD: $(pfxPassword)
+          PFX_SHA1: $(pfxSha1)
+        inputs:
+          solution: '$(solution)'
+          vsVersion: '15.0'
+          platform: '$(BuildPlatform)'
+          configuration: '$(BuildConfiguration)'
+          maximumCpuCount: true
+          logFileVerbosity: detailed
+          #msbuildArgs: '/m /p:DeployExtension=false /p:ZipPackageCompressionLevel=normal /p:defineConstants="SignAssembly" /p:SignAssembly=true /p:AssemblyOriginatorKeyFile="$(snk.secureFilePath)" /p:PFX_PATH="$(pfx.secureFilePath)"'
+      - task: VSTest@2
+        enabled: false
+        inputs:
+          testSelector: 'testAssemblies'
+          testAssemblyVer2: |
+            **\$(BuildConfiguration)\*test*.dll
+            !**\obj\**
+          searchFolder: '$(System.DefaultWorkingDirectory)'
+          vsTestVersion: '15.0'
+          codeCoverageEnabled: true
+      - task: PowerShell@2
+        displayName: 'Write project version in file' 
+        inputs:
+          targetType: 'inline'
+          script: |
+            $env:SONAR_PROJECT_VERSION = [System.Environment]::GetEnvironmentVariable("SONAR_PROJECT_VERSION","User")
+            Add-Content DeploymentArtifacts/BuildAgentPayload/$(BuildConfiguration)/version.txt $env:SONAR_PROJECT_VERSION
+      - task: PowerShell@2
+        displayName: 'Delete files created by unit tests'
+        enabled: false
+        inputs:
+          targetType: 'inline'
+          script: |
+            Write-Host "Delete files created by unit tests, so that they will not be taken by the SonarCloud analysis."
+            $env:TEST_FILE_TO_DELETE = [System.Environment]::GetEnvironmentVariable("TEST_FILE_TO_DELETE","User")
+            Write-Host "env value : $env:TEST_FILE_TO_DELETE"
+            $files = $env:TEST_FILE_TO_DELETE
+            $listOfFiles = $files.Split(";;")
+            foreach ($file in $listOfFiles) {
+              Write-Host "Try to delete : $file"
+              if([System.IO.File]::Exists($file))
+              {
+                Write-Host "$file exists, deleting..."
+                Remove-Item -Path $file
+                Write-Host "$file deleted."
+              }
+            }
+            Get-ChildItem $(Agent.TempDirectory) -Filter 'dummy.*' -Recurse -Attributes !Directory | Remove-Item
+            Get-ChildItem $(Agent.TempDirectory) -Filter 'VSCodeCoverageReport.*' -Recurse -Attributes !Directory | Remove-Item
+      - task: PowerShell@2
+        displayName: 'Display env variables'
+        inputs:
+          targetType: 'inline'
+          script: |
+            gci env:
+      - task: SonarCloudAnalyze@1
+        enabled: false
+        condition: and(succeeded(), or(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranchName'], 'master')))
+      - task: SonarCloudPublish@1
+        enabled: false
+        condition: and(succeeded(), or(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranchName'], 'master')))
+      - task: DownloadSecureFile@1
+        displayName: 'Download Maven settings'
+        name: mavenSettings
+        inputs:
+          secureFile: 'maven-settings.xml'
+      - task: DownloadSecureFile@1
+        displayName: 'Download JKS keystore'
+        name: jks
+        inputs:
+          secureFile: 'SonarSource-2019-2021.jks'
+      - task: PowerShell@2
+        displayName: 'Generate artifacts'
+        inputs:
+          filePath: 'scripts\\build\\ci-build.ps1'
+      - task: Maven@3
+        displayName: Promote new version in pom
+        env:
+          ARTIFACTORY_URL: $(ARTIFACTORY_URL)
+        inputs:
+         mavenPomFile: 'pom.xml'
+         goals: 'org.codehaus.mojo:versions-maven-plugin:3.0:set'
+         options: '-DnewVersion=$(SONAR_PROJECT_VERSION) --settings $(mavenSettings.secureFilePath) -DgenerateBackupPoms=false -B -e'
+         javaHomeOption: 'JDKVersion'
+         mavenVersionOption: 'Default'
+         jdkVersionOption: '1.11'
+         mavenOptions: '-Xmx3072m'
+      - task: Maven@3
+        displayName: 'Stage to repox'
+        env:
+          PROJECT_VERSION: $(SONAR_PROJECT_VERSION)
+          BUILD_ID: $(Build.BuildId)
+          ARTIFACTORY_DEPLOY_USERNAME: $(ARTIFACTORY_DEPLOY_USERNAME)
+          ARTIFACTORY_DEPLOY_PASSWORD: $(ARTIFACTORY_DEPLOY_PASSWORD)
+        inputs:
+          goals: 'deploy'
+          options: '--settings $(mavenSettings.secureFilePath) -Pdeploy-sonarsource -B -e -V'
+          publishJUnitResults: false
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.11'
+          mavenOptions: '-Xmx3072m'
+      - task: PublishPipelineArtifact@1
+        displayName: 'Publish packages as artifacts'
+        inputs:
+          targetPath: 'DeploymentArtifacts/BuildAgentPayload/$(BuildConfiguration)'
+          artifact: 'scanner-packages'
+
+- template: stage-with-burgr-notifications.yml@commonTemplates
+  parameters:
+    burgrName: 'qa'
+    burgrType: 'QA'
+    stageName: 'qa'
+    stageDisplayName: Run ITs
+    stageDependencies: build
+    jobs:
+    - job: its
+      displayName: 'Run its'
+      strategy: 
+        matrix: 
+          vs2015_dev: 
+            imageName: "vs2015-win2012r2"
+            SQ_VERSION: "DEV"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\msbuild.exe"
+          vs2015_latest67: 
+            imageName: "vs2015-win2012r2"
+            SQ_VERSION: "LATEST_RELEASE[6.7]"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\msbuild.exe"
+          vs2015_latest79: 
+            imageName: "vs2015-win2012r2"
+            SQ_VERSION: "LATEST_RELEASE[7.9]"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\msbuild.exe"
+          vs2017_dev: 
+            imageName: "vs2017-win2016"
+            SQ_VERSION: "DEV"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\msbuild.exe"
+          vs2017_latest67: 
+            imageName: "vs2017-win2016"
+            SQ_VERSION: "LATEST_RELEASE[6.7]"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\msbuild.exe"
+          vs2017_latest79: 
+            imageName: "vs2017-win2016"
+            SQ_VERSION: "LATEST_RELEASE[7.9]"
+            MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\msbuild.exe"
+        maxParallel: 2
+      steps:
+       - checkout: self
+         fetchDepth: 1
+       - task: DownloadSecureFile@1
+         displayName: 'Download maven settings'
+         name: mavenSettings
+         inputs:
+          secureFile: 'maven-settings.xml'
+       - task: DownloadPipelineArtifact@2
+         inputs:
+          buildType: 'current'
+          itemPattern: |
+            *.zip
+            version.txt
+          targetPath: '$(Pipeline.Workspace)\\scanner-packages'
+          artifactName: scanner-packages
+       - task: PowerShell@2
+         displayName: "Get version from artifact file"
+         inputs:
+          targetType: 'inline'
+          script: |
+             $projectVersion = Get-Content "$(Pipeline.Workspace)\\scanner-packages\\version.txt"
+             Rename-Item -Path "$(Pipeline.Workspace)\\scanner-packages\\sonarscanner-msbuild-$projectVersion.$env:Build_BuildId-net46.zip" -NewName "sonarscanner-msbuild-net46.zip"
+             Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION]$projectVersion"
+       - task: Maven@3
+         displayName: 'Run Maven ITs for SQ $(SQ_VERSION)'
+         env:
+           ARTIFACTORY_QA_READER_USERNAME: $(ARTIFACTORY_QA_READER_USERNAME)
+           ARTIFACTORY_QA_READER_PASSWORD: $(ARTIFACTORY_QA_READER_PASSWORD)
+           # For Orchestrator
+           ARTIFACTORY_API_KEY: $(ARTIFACTORY_API_KEY)
+           GITHUB_TOKEN: $(GITHUB_TOKEN)
+         inputs:
+          goals: 'verify'
+          options: --settings $(mavenSettings.secureFilePath) -B -e -Denable-repo=qa -Dsonar.runtimeVersion=$(SQ_VERSION) -DscannerForMSBuild.version=$(SONAR_PROJECT_VERSION).$(Build.BuildId) -Dmsbuild.path="$(MSBUILD_PATH)"
+          publishJUnitResults: true
+          mavenPomFile: 'its/pom.xml'
+          testResultsFiles: '**/surefire-reports/TEST-*.xml'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.11'
+          mavenOptions: '-Xmx3072m'
+- template: promote-stage.yml@commonTemplates
+  parameters:
+    stageDependencies:
+    - build
+    - qa
+- stage: DeployToChocolateyTest
+  displayName: Upload to Chocolatey
+  dependsOn: 
+  - build
+  - qa
+  jobs:
+  - deployment: deploy_chocolatey_test
+    displayName: Deploy to Chocolatey (Test)
+    variables:
+     pipelineArtifactOutputPath: $(Pipeline.Workspace)\\scanner-packages
+     chocoApiKey: $(CHOCO_TEST_API_KEY)
+    # creates an environment if it doesn't exist
+    environment: 'ScannerForMsBuild-Test'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              itemPattern: |
+                sonarscanner-msbuild-*.nupkg
+                version.txt
+              targetPath: '$(Pipeline.Workspace)\\scanner-packages'
+              artifactName: 'scanner-packages'
+          - task: PowerShell@2
+            displayName: "Install chocolatey"
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "Installing chocolatey...."
+                Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+                Write-Host "Choco is ready to use !"
+          - task: PowerShell@2
+            displayName: "Push .Net Fwk 46 package to chocolatey"
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "Publishing .net 46 package...."
+                $projectVersion = Get-Content "$(pipelineArtifactOutputPath)\\version.txt"
+                choco push $(pipelineArtifactOutputPath)\\sonarscanner-msbuild-net46.$projectVersion.$env:BUILD_BUILDID.nupkg -k $env:chocoApiKey -source "https://chocolatey.org/" --yes --whatif
+          - task: PowerShell@2
+            displayName: "Push .Net Core 2 package to chocolatey"
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "Installing chocolatey...."
+                $projectVersion = Get-Content "$(pipelineArtifactOutputPath)\\version.txt"
+                choco push $(pipelineArtifactOutputPath)\\sonarscanner-msbuild-netcoreapp2.0.$projectVersion.$env:BUILD_BUILDID.nupkg -k $env:chocoApiKey -source "https://chocolatey.org/" --yes --whatif
+- stage: DeployToGitHubTest
+  displayName: Release to GitHub
+  dependsOn: 
+  - build
+  - qa
+  jobs:
+  - deployment: deploy_github_test
+    displayName: Deploy to GitHub (Test)
+    variables:
+      pipelineArtifactOutputPath: $(Pipeline.Workspace)/scanner-packages
+    # creates an environment if it doesn't exist
+    environment: 'ScannerForMsBuild-Test'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              itemPattern: |
+                sonarscanner-msbuild-*.zip
+                version.txt
+              targetPath: '$(Pipeline.Workspace)'
+              artifactName: 'scanner-packages'
+          - task: PowerShell@2
+            displayName: 'Get version from file'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $version = Get-Content "$(pipelineArtifactOutputPath)/version.txt"
+                Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION]$version"
+          - task: PowerShell@2
+            displayName: 'Generate release note'
+            inputs:
+             targetType: 'inline'
+             script: |
+               try { 
+                   $projectVersion = Get-Content "$(pipelineArtifactOutputPath)/version.txt"
+                   Write-Host "Project version : $projectVersion"
+                   $url = "https://sonar-dotnet-rel-notes.azurewebsites.net/api/gen?r=SonarSource/sonar-scanner-msbuild&m=$projectVersion&t=github-token"
+                   Write-Host "Release note url : $url"
+                   Invoke-RestMethod -Uri $url -Method Get -ErrorAction Stop -OutFile release.txt
+               }
+               catch [System.Net.WebException]
+               { 
+                 $streamReader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
+                 $streamReader.BaseStream.Position = 0
+                 $streamReader.DiscardBufferedData()
+                 $ErrResp = $streamReader.ReadToEnd()
+                 $streamReader.Close()
+                 Write-Host $ErrResp.ToString()
+               }
+          - task: GitHubRelease@1
+            enabled: false
+            displayName: 'Create release on GitHub and upload artifacts'
+            inputs:
+              gitHubConnection: 'mickael-caro-sonarsource (1)'
+              repositoryName: '$(Build.Repository.Name)'
+              action: 'create'
+              target: '$(Build.SourceVersion)'
+              tagSource: 'userSpecifiedTag'
+              tag: '$(SONAR_PROJECT_VERSION).$(Build.BuildId)'
+              title: '$(SONAR_PROJECT_VERSION).$(Build.BuildId)'
+              releaseNotesFilePath: 'release.txt'
+              assets: '$(pipelineArtifactOutputPath)/*.zip'
+              addChangeLog: false
+- stage: DeployToNugetTest
+  displayName: Upload to Nuget
+  dependsOn: 
+  - build
+  - qa
+  jobs:
+  - deployment: deploy_nuget_test
+    displayName: Deploy to Nuget (Test)
+    variables:
+     pipelineArtifactOutputPath: $(Pipeline.Workspace)/scanner-packages
+    # creates an environment if it doesn't exist
+    environment: 'ScannerForMsBuild-Test'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              itemPattern: 'dotnet-sonarscanner*.nupkg'
+              targetPath: '$(Pipeline.Workspace)'
+              artifactName: 'scanner-packages'
+          - task: NuGetCommand@2
+            enabled: false
+            inputs:
+             command: 'push'
+             packagesToPush: '$(pipelineArtifactOutputPath)/*.nupkg'
+             nuGetFeedType: 'external'
+             publishFeedCredentials: 'Nuget'
