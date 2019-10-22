@@ -278,34 +278,17 @@ stages:
               Write-Host "Install of JDK11 done !"
             }
 
-            $path = [System.Environment]::GetEnvironmentVariable(
-             'PATH',
-             'Machine'
-             )
-             # Remove unwanted elements
-             $path = ($path.Split(';') | Where-Object { $_ -ne 'C:\java\jdk\jdk1.8.0_102' }) -join ';'
-
              If($env:IMAGENAME -eq "vs2015-win2012r2")
              {
                $jdkPath = 'C:\Program Files\OpenJDK\openjdk-11u-11.0.4_11'
+               Write-Host "##vso[task.setvariable variable=JDK_PATH]$jdkPath"
                
              }ElseIf($env:IMAGENAME -eq "vs2017-win2016")
              {
                $jdkPath = 'C:\Program Files\Java\zulu-11-azure-jdk_11.33.15-11.0.4-win_x64'
+               Write-Host "##vso[task.setvariable variable=JDK_PATH]$jdkPath"
              }
 
-             $path = $path + ';%JAVA_HOME%/bin;$jdkPath'
-             [System.Environment]::SetEnvironmentVariable("JAVA_HOME", $jdkPath , "Machine")
-               
-             # Set it
-             [System.Environment]::SetEnvironmentVariable(
-             'PATH',
-             $path,
-             'Machine'
-            )
-
-            
-            Write-Host "JAVA_HOME is set !"
        - task: PowerShell@2
          displayName: "Get version from artifact file"
          inputs:
@@ -313,9 +296,7 @@ stages:
           script: |
              $projectVersion = Get-Content "$(Pipeline.Workspace)\\scanner-packages\\version.txt"
              Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION]$projectVersion"
-             $javaHome = [System.Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine")
-             Write-Host $javaHome
-             gci env:
+             $env:JDK_PATH
        - task: Maven@3
          displayName: 'Run Maven ITs for SQ $(SQ_VERSION)_$(imageName)'
          env:
@@ -334,7 +315,7 @@ stages:
           testResultsFiles: '**/surefire-reports/TEST-*.xml'
           testRunTitle: 'ITs $(SQ_VERSION)_$(imageName)'
           javaHomeOption: 'Path'
-          jdkDirectory: $(JAVA_HOME)
+          jdkDirectory: $(JDK_PATH)
           mavenOptions: $(MAVEN_OPTS)
        - bash: git checkout .
          name: revertPomChanges
