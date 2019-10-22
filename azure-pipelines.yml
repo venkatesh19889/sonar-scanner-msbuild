@@ -44,7 +44,6 @@ stages:
         displayName: 'Use NuGet 4.9.3'
         inputs:
           versionSpec: '4.9.3'
-
       - task: CacheBeta@0
         displayName: Cache Maven local repo
         inputs:
@@ -211,32 +210,32 @@ stages:
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "DEV"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: true
+            SHOULD_UPGRADE_JDK: 'true'
           vs2015_latest67: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "LATEST_RELEASE[6.7]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: true
+            SHOULD_UPGRADE_JDK: 'true'
           vs2015_latest79: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "LATEST_RELEASE[7.9]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: true
+            SHOULD_UPGRADE_JDK: 'true'
           vs2017_dev: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "DEV"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: false
+            SHOULD_UPGRADE_JDK: 'false'
           vs2017_latest67: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "LATEST_RELEASE[6.7]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: false
+            SHOULD_UPGRADE_JDK: 'false'
           vs2017_latest79: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "LATEST_RELEASE[7.9]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: false
+            SHOULD_UPGRADE_JDK: 'false'
         maxParallel: 2
       variables:
         MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
@@ -265,15 +264,15 @@ stages:
           targetPath: '$(Pipeline.Workspace)\\scanner-packages'
           artifactName: scanner-packages
        - task: PowerShell@2
-         condition: and(succeeded(), eq(variables['SHOULD_UPGRADE_JDK'], true))
-         displayName: "Install chocolatey + JDK 11"
+         condition: and(succeeded(), eq(variables['SHOULD_UPGRADE_JDK'], 'true'))
+         displayName: Install chocolatey + JDK 11
          inputs:
-            targetType: 'inline'
-              script: |
-                Write-Host "Installing chocolatey...."
-                Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-                Write-Host "Choco is ready to use !"
-                choco install openjdk --version=11.0
+         targetType: 'inline'
+         script: |
+           Write-Host "Installing chocolatey...."
+           Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+           Write-Host "Choco is ready to use !"
+           choco install openjdk --version=11.0
        - task: PowerShell@2
          displayName: "Get version from artifact file"
          inputs:
