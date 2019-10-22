@@ -273,6 +273,7 @@ stages:
             Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
             Write-Host "Choco is ready to use !"
             choco install openjdk11 --yes
+            $env:JAVA_HOME = "C:\Program Files\OpenJDK\openjdk-11u-11.0.4_11\bin"
        - task: PowerShell@2
          displayName: "Get version from artifact file"
          inputs:
@@ -280,7 +281,6 @@ stages:
           script: |
              $projectVersion = Get-Content "$(Pipeline.Workspace)\\scanner-packages\\version.txt"
              Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION]$projectVersion"
-             gci env:
        - task: Maven@3
          displayName: 'Run Maven ITs for SQ $(SQ_VERSION)_$(imageName)'
          env:
