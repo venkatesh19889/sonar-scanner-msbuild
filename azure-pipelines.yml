@@ -272,7 +272,7 @@ stages:
             Write-Host "Installing chocolatey...."
             Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
             Write-Host "Choco is ready to use !"
-            choco install openjdk --version=11.0
+            choco install openjdk --version=11.0 --yes
        - task: PowerShell@2
          displayName: "Get version from artifact file"
          inputs:
