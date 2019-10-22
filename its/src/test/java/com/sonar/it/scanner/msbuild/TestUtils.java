@@ -306,7 +306,7 @@ public class TestUtils {
   @CheckForNull
   private static WsMeasures.Measure getMeasure(@Nullable String componentKey, String metricKey, Orchestrator orchestrator) {
     WsMeasures.ComponentWsResponse response = newWsClient(orchestrator).measures().component(new ComponentWsRequest()
-      .setComponentKey(componentKey)
+      .setComponent(componentKey)
       .setMetricKeys(Collections.singletonList(metricKey)));
     List<WsMeasures.Measure> measures = response.getComponent().getMeasuresList();
     return measures.size() == 1 ? measures.get(0) : null;
