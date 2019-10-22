@@ -274,7 +274,7 @@ stages:
             Write-Host "Choco is ready to use !"
             choco install openjdk11 --yes
             Write-Host "Install of JDK11 done !"
-            [System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\OpenJDK\openjdk-11u-11.0.4_11\bin", "User")
+            [System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\\Program Files\\OpenJDK\\openjdk-11u-11.0.4_11\\bin", "Machine")
             Write-Host "JAVA_HOME is set !"
        - task: PowerShell@2
          displayName: "Get version from artifact file"
@@ -283,6 +283,7 @@ stages:
           script: |
              $projectVersion = Get-Content "$(Pipeline.Workspace)\\scanner-packages\\version.txt"
              Write-Host "##vso[task.setvariable variable=SONAR_PROJECT_VERSION]$projectVersion"
+             Write-Host [System.Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine")
              gci env:
        - task: Maven@3
          displayName: 'Run Maven ITs for SQ $(SQ_VERSION)_$(imageName)'
