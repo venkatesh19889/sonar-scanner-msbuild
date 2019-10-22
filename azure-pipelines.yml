@@ -211,26 +211,32 @@ stages:
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "DEV"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
+            JDK_Version: '1.8'
           vs2015_latest67: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "LATEST_RELEASE[6.7]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
+            JDK_Version: '1.8'
           vs2015_latest79: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "LATEST_RELEASE[7.9]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
+            JDK_Version: '1.8'
           vs2017_dev: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "DEV"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
+            JDK_Version: '1.11'
           vs2017_latest67: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "LATEST_RELEASE[6.7]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
+            JDK_Version: '1.11'
           vs2017_latest79: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "LATEST_RELEASE[7.9]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
+            JDK_Version: '1.11'
         maxParallel: 2
       variables:
         MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
@@ -283,7 +289,7 @@ stages:
           testResultsFiles: '**/surefire-reports/TEST-*.xml'
           testRunTitle: 'ITs $(SQ_VERSION)_$(imageName)'
           javaHomeOption: 'JDKVersion'
-          jdkVersionOption: '1.11'
+          jdkVersionOption: $(JDK_Version)
           mavenOptions: $(MAVEN_OPTS)
        - bash: git checkout .
          name: revertPomChanges
