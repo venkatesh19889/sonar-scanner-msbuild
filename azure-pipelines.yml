@@ -257,12 +257,12 @@ stages:
           targetPath: '$(Pipeline.Workspace)\\scanner-packages'
           artifactName: scanner-packages
        - task: PowerShell@2
-         displayName: "Push .Net Core 2 package to chocolatey"
+         displayName: "MSbuild commandline stuff"
          inputs:
            targetType: 'inline'
            script: |
               Write-Host "Seeking for msbuild.exe...."
-              Get-ChildItem -Path "C:\\Program Files (x86)\\MSBuild" -Recurse -Filter "msbuild.exe"
+              dir "C:\\Program Files (x86)\\MSBuild" -recurse
        - task: PowerShell@2
          displayName: "Get version from artifact file"
          inputs:
@@ -279,6 +279,7 @@ stages:
            ARTIFACTORY_API_KEY: $(ARTIFACTORY_API_KEY)
            GITHUB_TOKEN: $(GITHUB_TOKEN)
            MAVEN_LOCAL_REPOSITORY: $(MAVEN_CACHE_FOLDER)
+           NUGET_PATH: $(NUGETEXETOOLPATH)
          inputs:
           goals: 'verify'
           options: --settings $(mavenSettings.secureFilePath) -B -e -Denable-repo=qa -Dsonar.runtimeVersion=$(SQ_VERSION) -DscannerForMSBuild.version=$(SONAR_PROJECT_VERSION).$(Build.BuildId) -Dmsbuild.path="$(MSBUILD_PATH)"
