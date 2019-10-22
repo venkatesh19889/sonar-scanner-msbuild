@@ -297,8 +297,8 @@ stages:
           mavenPomFile: 'its/pom.xml'
           testResultsFiles: '**/surefire-reports/TEST-*.xml'
           testRunTitle: 'ITs $(SQ_VERSION)_$(imageName)'
-          javaHomeOption: 'JDKVersion'
-          jdkVersionOption: '1.11'
+          javaHomeOption: 'Path'
+          jdkDirectory: $(JAVA_HOME)
           mavenOptions: $(MAVEN_OPTS)
        - bash: git checkout .
          name: revertPomChanges
