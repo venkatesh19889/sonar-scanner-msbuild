@@ -265,14 +265,14 @@ stages:
           artifactName: scanner-packages
        - task: PowerShell@2
          condition: and(succeeded(), eq(variables['SHOULD_UPGRADE_JDK'], 'true'))
-         displayName: Install chocolatey + JDK 11
+         displayName: "Install chocolatey + JDK 11"
          inputs:
-         targetType: 'inline'
-         script: |
-           Write-Host "Installing chocolatey...."
-           Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-           Write-Host "Choco is ready to use !"
-           choco install openjdk --version=11.0
+          targetType: 'inline'
+          script: |
+            Write-Host "Installing chocolatey...."
+            Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+            Write-Host "Choco is ready to use !"
+            choco install openjdk --version=11.0
        - task: PowerShell@2
          displayName: "Get version from artifact file"
          inputs:
