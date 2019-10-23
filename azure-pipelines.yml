@@ -210,36 +210,31 @@ stages:
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "DEV"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: 'true'
           vs2015_latest67: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "LATEST_RELEASE[6.7]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: 'false'
           vs2015_latest79: 
             imageName: "vs2015-win2012r2"
             SQ_VERSION: "LATEST_RELEASE[7.9]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: 'true'
           vs2017_dev: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "DEV"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: 'true'
           vs2017_latest67: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "LATEST_RELEASE[6.7]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: 'false'
           vs2017_latest79: 
             imageName: "vs2017-win2016"
             SQ_VERSION: "LATEST_RELEASE[7.9]"
             MSBUILD_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise\\MSBuild\\15.0\\Bin\\MSBuild.exe"
-            SHOULD_UPGRADE_JDK: 'true'
         maxParallel: 2
       variables:
         MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
         MAVEN_OPTS: '-Xmx3072m -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+        system.debug: true
       pool:
        vmImage: $(imageName)
       steps:
