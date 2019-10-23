@@ -236,7 +236,7 @@ stages:
         MAVEN_OPTS: '-Xmx3072m -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
         system.debug: true
       pool:
-       vmImage: $(imageName)
+       name: 'mickael'
       steps:
        - checkout: self
          fetchDepth: 1
