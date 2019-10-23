@@ -270,8 +270,24 @@ public class TestUtils {
   static void dumpAllIssues(Orchestrator orchestrator) {
     LOG.info("Dumping all issues:");
     for (Issue issue : allIssues(orchestrator)) {
-      LOG.info("Key: " + issue.getKey() + "   Rule: " + issue.getRule() + "  Component:" + issue.getComponent());
+      LOG.info("  Key: " + issue.getKey() + "   Rule: " + issue.getRule() + "  Component:" + issue.getComponent());
     }
+  }
+
+  static BuildResult executeEndStepAndDumpResults(Orchestrator orchestrator, Path projectDir){
+    BuildResult result = orchestrator.executeBuild(TestUtils.newScanner(orchestrator, projectDir)
+      .addArgument("end"));
+
+    if (result.isSuccess()) {
+      TestUtils.dumpComponentList(orchestrator);
+      TestUtils.dumpAllIssues(orchestrator);
+    }
+    else
+    {
+      LOG.warn("End step was not successful - skipping dumping issues data");
+    }
+
+    return result;
   }
 
   public static List<Issue> issuesForComponent(Orchestrator orchestrator, String componentKey) {
