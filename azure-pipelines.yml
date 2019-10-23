@@ -237,7 +237,6 @@ stages:
         system.debug: true
       pool:
        vmImage: $(imageName)
-       name: 'Default'
       steps:
        - checkout: self
          fetchDepth: 1
