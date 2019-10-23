@@ -208,7 +208,7 @@ public class TestUtils {
     int r = CommandExecutor.create().execute(Command.create(nugetPath.toString())
       .addArguments(arguments)
       .addArguments("-MSBuildPath", TestUtils.getMsBuildPath(orch).getParent().toString())
-      .setDirectory(projectDir.toFile()), 60 * 1000);
+      .setDirectory(projectDir.toFile()), 300 * 1000);
     assertThat(r).isEqualTo(0);
   }
 
