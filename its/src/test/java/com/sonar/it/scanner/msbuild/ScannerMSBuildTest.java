@@ -226,7 +226,7 @@ public class ScannerMSBuildTest {
       .setProjectName("excludedAndTest")
       .setProjectVersion("1.0"));
 
-    TestUtils.runMSBuild(ORCHESTRATOR, projectDir, "/t:Rebuild", "/p:Internal_DisableBuildEnvironmentDetection=true");
+    TestUtils.runMSBuild(ORCHESTRATOR, projectDir, "/t:Rebuild");
 
     BuildResult result = TestUtils.executeEndStepAndDumpResults(ORCHESTRATOR, projectDir);
     assertTrue(result.isSuccess());
