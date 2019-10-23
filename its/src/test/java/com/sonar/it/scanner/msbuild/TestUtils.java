@@ -267,6 +267,13 @@ public class TestUtils {
     }
   }
 
+  static void dumpAllIssues(Orchestrator orchestrator) {
+    LOG.info("Dumping all issues:");
+    for (Issue issue : allIssues(orchestrator)) {
+      LOG.info("Key: " + issue.getKey() + "   Rule: " + issue.getRule() + "  Component:" + issue.getComponent());
+    }
+  }
+
   public static List<Issue> issuesForComponent(Orchestrator orchestrator, String componentKey) {
     return newWsClient(orchestrator)
       .issues()

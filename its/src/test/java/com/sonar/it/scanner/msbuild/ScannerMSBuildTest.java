@@ -66,6 +66,8 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.sonarqube.ws.Issues.Issue;
 import org.sonarqube.ws.WsComponents;
 import org.sonarqube.ws.WsMeasures;
@@ -78,6 +80,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertTrue;
 
 public class ScannerMSBuildTest {
+  final static Logger LOG = LoggerFactory.getLogger(ScannerMSBuildTest.class);
+
   private static final String PROJECT_KEY = "my.project";
   private static final String PROXY_USER = "scott";
   private static final String PROXY_PASSWORD = "tiger";
@@ -221,14 +225,22 @@ public class ScannerMSBuildTest {
       .setProjectName("excludedAndTest")
       .setProjectVersion("1.0"));
 
-    TestUtils.runMSBuild(ORCHESTRATOR, projectDir, "/t:Rebuild");
+    TestUtils.runMSBuild(ORCHESTRATOR, projectDir, "/t:Rebuild", "/p:AGENT_BUILDDIRECTORY=");
 
     ORCHESTRATOR.executeBuild(TestUtils.newScanner(ORCHESTRATOR, projectDir)
       .addArgument("end"));
 
+    // Dump debug info
+    LOG.info("normalProjectKey = " + normalProjectKey);
+    LOG.info("testProjectKey = " + testProjectKey);
+
+    TestUtils.dumpComponentList(ORCHESTRATOR);
+    TestUtils.dumpAllIssues(ORCHESTRATOR);
+
     // all issues and nloc are in the normal project
     List<Issue> issues = TestUtils.allIssues(ORCHESTRATOR);
     assertThat(issues).hasSize(2);
+
 
     issues = TestUtils.issuesForComponent(ORCHESTRATOR, normalProjectKey);
     assertThat(issues).hasSize(2);
