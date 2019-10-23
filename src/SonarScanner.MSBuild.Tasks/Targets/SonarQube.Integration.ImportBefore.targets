@@ -9,7 +9,7 @@
     <!-- TFS 2015 -->
     <SonarQubeBuildDirectory Condition=" $(SonarQubeBuildDirectory) == '' ">$(AGENT_BUILDDIRECTORY)</SonarQubeBuildDirectory>
     <!-- Command line -->
-    <SonarQubeBuildDirectory Condition=" $(SonarQubeBuildDirectory) == '' ">$(MSBuildStartupDirectory)</SonarQubeBuildDirectory>
+    <SonarQubeBuildDirectory Condition=" $(SonarQubeBuildDirectory) == '' OR $(Internal_DisableBuildEnvironmentDetection) == 'true' ">$(MSBuildStartupDirectory)</SonarQubeBuildDirectory>
 
     <SonarQubeTempPath Condition=" $(SonarQubeBuildDirectory) != '' AND Exists('$(SonarQubeBuildDirectory)\.sonarqube\conf\SonarQubeAnalysisConfig.xml') ">$(SonarQubeBuildDirectory)\.sonarqube</SonarQubeTempPath>
 

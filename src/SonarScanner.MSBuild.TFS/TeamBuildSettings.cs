@@ -48,6 +48,7 @@ namespace SonarScanner.MSBuild.TFS
             public const string LegacyCodeCoverageTimeoutInMs = "SQ_LegacyCodeCoverageInMs";
 
             public const string IsInTeamFoundationBuild = "TF_Build"; // Common to legacy and non-legacy TeamBuilds
+            public const string DisableBuildEnvironmentDetection = "Internal_DisableBuildEnvironmentDetection"; // turn of detection  of build environment (used when testing)
 
             // Legacy TeamBuild environment variables (XAML Builds)
             public const string TfsCollectionUri_Legacy = "TF_BUILD_COLLECTIONURI";
@@ -80,7 +81,7 @@ namespace SonarScanner.MSBuild.TFS
 
             TeamBuildSettings settings;
 
-            var env = GetBuildEnvironment();
+            var env = GetBuildEnvironment(logger);
             switch (env)
             {
                 case BuildEnvironment.LegacyTeamBuild:
@@ -132,8 +133,14 @@ namespace SonarScanner.MSBuild.TFS
         /// <summary>
         /// Returns the type of the current build environment: not under TeamBuild, legacy TeamBuild, "new" TeamBuild
         /// </summary>
-        public static BuildEnvironment GetBuildEnvironment()
+        public static BuildEnvironment GetBuildEnvironment(ILogger logger)
         {
+            if (TryGetBoolEnvironmentVariable(EnvironmentVariables.DisableBuildEnvironmentDetection, false))
+            {
+                logger.LogWarning($"Skipping detection of build environment ({EnvironmentVariables.DisableBuildEnvironmentDetection} is set)");
+                return BuildEnvironment.NotTeamBuild;
+            }
+
             var env = BuildEnvironment.NotTeamBuild;
 
             if (IsInTeamBuild)

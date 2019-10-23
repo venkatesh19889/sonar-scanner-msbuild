@@ -225,7 +225,7 @@ public class ScannerMSBuildTest {
       .setProjectName("excludedAndTest")
       .setProjectVersion("1.0"));
 
-    TestUtils.runMSBuild(ORCHESTRATOR, projectDir, "/t:Rebuild", "/p:AGENT_BUILDDIRECTORY=");
+    TestUtils.runMSBuild(ORCHESTRATOR, projectDir, "/t:Rebuild", "/p:Internal_DisableBuildEnvironmentDetection=true");
 
     ORCHESTRATOR.executeBuild(TestUtils.newScanner(ORCHESTRATOR, projectDir)
       .addArgument("end"));
